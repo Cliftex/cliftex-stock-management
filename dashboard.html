@@ -1,1 +1,61 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIFTEX IT STOCK MANAGEMENT - DASHBOARD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>CLIFTEX IT STOCK MANAGEMENT</h1>
+            <div class="user-info">
+                <span id="currentUser"></span>
+                <button id="logoutBtn" class="btn-logout">LOGOUT</button>
+            </div>
+        </header>
+        <nav class="dashboard-nav">
+            <ul>
+                <li><a href="#" id="navStock">STOCK</a></li>
+                <li><a href="#" id="navIssues">ISSUES</a></li>
+            </ul>
+        </nav>
+        <main class="dashboard-main">
+            <div class="welcome-message">
+                <h2>WELCOME TO CLIFTEX IT STOCK MANAGEMENT SYSTEM</h2>
+                <p>SELECT AN OPTION FROM THE MENU TO CONTINUE</p>
+            </div>
+        </main>
+    </div>
+    <script src="js/auth.js"></script>
+    <script src="js/gapi.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            document.getElementById('currentUser').textContent = `LOGGED IN AS: ${user.username.toUpperCase()} (${user.role.toUpperCase()})`;
+            
+            document.getElementById('navStock').addEventListener('click', function(e) {
+                e.preventDefault();
+                window.location.href = 'stock.html';
+            });
+            
+            document.getElementById('navIssues').addEventListener('click', function(e) {
+                e.preventDefault();
+                window.location.href = 'issues.html';
+            });
+            
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
