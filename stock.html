@@ -1,1 +1,304 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIFTEX IT STOCK MANAGEMENT - STOCK</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>CLIFTEX IT STOCK MANAGEMENT</h1>
+            <div class="user-info">
+                <span id="currentUser"></span>
+                <button id="logoutBtn" class="btn-logout">LOGOUT</button>
+            </div>
+        </header>
+        <nav class="dashboard-nav">
+            <ul>
+                <li><a href="dashboard.html">DASHBOARD</a></li>
+                <li><a href="#" class="active">STOCK</a></li>
+                <li><a href="issues.html">ISSUES</a></li>
+            </ul>
+        </nav>
+        <main class="dashboard-main">
+            <div class="page-header">
+                <h2>STOCK MANAGEMENT</h2>
+                <button id="addStockBtn" class="btn-primary">ADD NEW ITEM</button>
+                <button id="exportStockBtn" class="btn-secondary">EXPORT TO EXCEL</button>
+            </div>
+            
+            <div class="modal" id="stockModal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h3 id="modalTitle">ADD NEW ITEM</h3>
+                    <form id="stockForm">
+                        <div class="form-group">
+                            <label for="itemName">ITEM NAME</label>
+                            <input type="text" id="itemName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="itemType">ITEM TYPE</label>
+                            <select id="itemType" required>
+                                <option value="">SELECT ITEM TYPE</option>
+                                <option value="Accessories">ACCESSORIES</option>
+                                <option value="Ribbon">RIBBON</option>
+                                <option value="Toner">TONER</option>
+                                <option value="Network items">NETWORK ITEMS</option>
+                                <option value="Other">OTHER</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="model">MODEL</label>
+                            <input type="text" id="model" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantity">QUANTITY</label>
+                            <input type="number" id="quantity" min="1" required>
+                        </div>
+                        <button type="submit" class="btn-primary">SAVE</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="stockTable">
+                    <thead>
+                        <tr>
+                            <th>ITEM NAME</th>
+                            <th>ITEM TYPE</th>
+                            <th>MODEL</th>
+                            <th>QUANTITY</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+    <script src="js/auth.js"></script>
+    <script src="js/gapi.js"></script>
+    <script src="js/stock.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            document.getElementById('currentUser').textContent = `LOGGED IN AS: ${user.username.toUpperCase()} (${user.role.toUpperCase()})`;
+            
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+            });
+            
+            // Check user role and adjust UI accordingly
+            if (user.role === 'operator') {
+                document.getElementById('addStockBtn').style.display = 'none';
+            }
+            
+            if (user.role === 'it') {
+                document.getElementById('addStockBtn').style.display = 'none';
+            }
+            
+            // Initialize stock management
+            initStockManagement(user.role);
+        });
+        
+        function initStockManagement(userRole) {
+            // Load stock data
+            loadStockData();
+            
+            // Set up modal
+            const modal = document.getElementById("stockModal");
+            const btn = document.getElementById("addStockBtn");
+            const span = document.getElementsByClassName("close")[0];
+            const form = document.getElementById("stockForm");
+            
+            if (btn) {
+                btn.onclick = function() {
+                    document.getElementById("modalTitle").textContent = "ADD NEW ITEM";
+                    form.reset();
+                    form.dataset.mode = "add";
+                    modal.style.display = "block";
+                }
+            }
+            
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
+            
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+            
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                const mode = form.dataset.mode;
+                const itemName = document.getElementById("itemName").value;
+                const itemType = document.getElementById("itemType").value;
+                const model = document.getElementById("model").value;
+                const quantity = document.getElementById("quantity").value;
+                
+                if (mode === "add") {
+                    addStockItem(itemName, itemType, model, quantity);
+                } else if (mode === "edit") {
+                    const itemId = form.dataset.itemId;
+                    updateStockItem(itemId, itemName, itemType, model, quantity);
+                }
+                
+                modal.style.display = "none";
+            }
+            
+            // Set up export button
+            document.getElementById("exportStockBtn").addEventListener("click", exportStockToExcel);
+        }
+        
+        function editStockItem(itemId) {
+            const modal = document.getElementById("stockModal");
+            const form = document.getElementById("stockForm");
+            
+            // Find the item in the current stock data
+            const stockData = JSON.parse(localStorage.getItem('stockData') || '[]');
+            const item = stockData.find(item => item.id === itemId);
+            
+            if (item) {
+                document.getElementById("modalTitle").textContent = "EDIT ITEM";
+                document.getElementById("itemName").value = item.itemName;
+                document.getElementById("itemType").value = item.itemType;
+                document.getElementById("model").value = item.model;
+                document.getElementById("quantity").value = item.quantity;
+                
+                form.dataset.mode = "edit";
+                form.dataset.itemId = itemId;
+                modal.style.display = "block";
+            }
+        }
+        
+        function deleteStockItem(itemId) {
+            if (confirm("ARE YOU SURE YOU WANT TO DELETE THIS ITEM?")) {
+                const stockData = JSON.parse(localStorage.getItem('stockData') || '[]');
+                const updatedData = stockData.filter(item => item.id !== itemId);
+                
+                localStorage.setItem('stockData', JSON.stringify(updatedData));
+                saveStockToGoogleSheets(updatedData);
+                loadStockData();
+            }
+        }
+        
+        function loadStockData() {
+            // First check local storage
+            const stockData = JSON.parse(localStorage.getItem('stockData') || '[]');
+            
+            if (stockData.length > 0) {
+                renderStockTable(stockData);
+            } else {
+                // If no local data, load from Google Sheets
+                loadStockFromGoogleSheets();
+            }
+        }
+        
+        function renderStockTable(data) {
+            const tbody = document.querySelector("#stockTable tbody");
+            tbody.innerHTML = "";
+            
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            
+            data.forEach(item => {
+                const tr = document.createElement("tr");
+                
+                tr.innerHTML = `
+                    <td>${item.itemName}</td>
+                    <td>${item.itemType}</td>
+                    <td>${item.model}</td>
+                    <td>${item.quantity}</td>
+                    <td class="actions">
+                        ${user.role === 'admin' ? `<button onclick="editStockItem('${item.id}')" class="btn-edit">EDIT</button>
+                        <button onclick="deleteStockItem('${item.id}')" class="btn-delete">DELETE</button>` : ''}
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }
+        
+        function addStockItem(itemName, itemType, model, quantity) {
+            const newItem = {
+                id: generateId(),
+                itemName,
+                itemType,
+                model,
+                quantity: parseInt(quantity),
+                timestamp: new Date().toISOString()
+            };
+            
+            const stockData = JSON.parse(localStorage.getItem('stockData') || '[]');
+            stockData.push(newItem);
+            
+            localStorage.setItem('stockData', JSON.stringify(stockData));
+            saveStockToGoogleSheets(stockData);
+            loadStockData();
+        }
+        
+        function updateStockItem(itemId, itemName, itemType, model, quantity) {
+            const stockData = JSON.parse(localStorage.getItem('stockData') || '[]');
+            const itemIndex = stockData.findIndex(item => item.id === itemId);
+            
+            if (itemIndex !== -1) {
+                stockData[itemIndex] = {
+                    ...stockData[itemIndex],
+                    itemName,
+                    itemType,
+                    model,
+                    quantity: parseInt(quantity)
+                };
+                
+                localStorage.setItem('stockData', JSON.stringify(stockData));
+                saveStockToGoogleSheets(stockData);
+                loadStockData();
+            }
+        }
+        
+        function generateId() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        
+        function exportStockToExcel() {
+            const stockData = JSON.parse(localStorage.getItem('stockData') || '[]');
+            
+            if (stockData.length === 0) {
+                alert("NO DATA TO EXPORT");
+                return;
+            }
+            
+            let csv = "ITEM NAME,ITEM TYPE,MODEL,QUANTITY\n";
+            
+            stockData.forEach(item => {
+                csv += `"${item.itemName}","${item.itemType}","${item.model}","${item.quantity}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", "CLIFTEX_STOCK_DATA_" + new Date().toISOString().slice(0, 10) + ".csv");
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
