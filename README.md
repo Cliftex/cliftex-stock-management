@@ -1,0 +1,1 @@
+# cliftex-stock-management
