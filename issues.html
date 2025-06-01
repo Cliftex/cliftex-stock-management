@@ -1,1 +1,319 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIFTEX IT STOCK MANAGEMENT - ISSUES</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>CLIFTEX IT STOCK MANAGEMENT</h1>
+            <div class="user-info">
+                <span id="currentUser"></span>
+                <button id="logoutBtn" class="btn-logout">LOGOUT</button>
+            </div>
+        </header>
+        <nav class="dashboard-nav">
+            <ul>
+                <li><a href="dashboard.html">DASHBOARD</a></li>
+                <li><a href="stock.html">STOCK</a></li>
+                <li><a href="#" class="active">ISSUES</a></li>
+            </ul>
+        </nav>
+        <main class="dashboard-main">
+            <div class="page-header">
+                <h2>ISSUES MANAGEMENT</h2>
+                <button id="addIssueBtn" class="btn-primary">ADD NEW ISSUE</button>
+                <button id="exportIssuesBtn" class="btn-secondary">EXPORT TO EXCEL</button>
+            </div>
+            
+            <div class="modal" id="issueModal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h3 id="issueModalTitle">ADD NEW ISSUE</h3>
+                    <form id="issueForm">
+                        <div class="form-group">
+                            <label for="issueDate">DATE</label>
+                            <input type="date" id="issueDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueItemType">ITEM TYPE</label>
+                            <select id="issueItemType" required>
+                                <option value="">SELECT ITEM TYPE</option>
+                                <option value="Accessories">ACCESSORIES</option>
+                                <option value="Ribbon">RIBBON</option>
+                                <option value="Toner">TONER</option>
+                                <option value="Network items">NETWORK ITEMS</option>
+                                <option value="Other">OTHER</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueItemName">ITEM NAME</label>
+                            <input type="text" id="issueItemName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueModel">MODEL</label>
+                            <input type="text" id="issueModel" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueQuantity">QUANTITY</label>
+                            <input type="number" id="issueQuantity" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueDepartment">DEPARTMENT</label>
+                            <input type="text" id="issueDepartment" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueUserName">USER NAME</label>
+                            <input type="text" id="issueUserName" required>
+                        </div>
+                        <button type="submit" class="btn-primary">SAVE</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="issuesTable">
+                    <thead>
+                        <tr>
+                            <th>DATE</th>
+                            <th>ITEM TYPE</th>
+                            <th>ITEM NAME</th>
+                            <th>MODEL</th>
+                            <th>QUANTITY</th>
+                            <th>DEPARTMENT</th>
+                            <th>USER NAME</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+    <script src="js/auth.js"></script>
+    <script src="js/gapi.js"></script>
+    <script src="js/issues.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            document.getElementById('currentUser').textContent = `LOGGED IN AS: ${user.username.toUpperCase()} (${user.role.toUpperCase()})`;
+            
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+            });
+            
+            // Check user role and adjust UI accordingly
+            if (user.role === 'operator') {
+                document.getElementById('addIssueBtn').style.display = 'none';
+            }
+            
+            // Initialize issues management
+            initIssuesManagement(user.role);
+        });
+        
+        function initIssuesManagement(userRole) {
+            // Load issues data
+            loadIssuesData();
+            
+            // Set up modal
+            const modal = document.getElementById("issueModal");
+            const btn = document.getElementById("addIssueBtn");
+            const span = document.getElementsByClassName("close")[1];
+            const form = document.getElementById("issueForm");
+            
+            if (btn) {
+                btn.onclick = function() {
+                    document.getElementById("issueModalTitle").textContent = "ADD NEW ISSUE";
+                    form.reset();
+                    document.getElementById("issueDate").value = new Date().toISOString().slice(0, 10);
+                    form.dataset.mode = "add";
+                    modal.style.display = "block";
+                }
+            }
+            
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
+            
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+            
+            form.onsubmit = function(e) {
+                e.preventDefault();
+                const mode = form.dataset.mode;
+                const date = document.getElementById("issueDate").value;
+                const itemType = document.getElementById("issueItemType").value;
+                const itemName = document.getElementById("issueItemName").value;
+                const model = document.getElementById("issueModel").value;
+                const quantity = document.getElementById("issueQuantity").value;
+                const department = document.getElementById("issueDepartment").value;
+                const userName = document.getElementById("issueUserName").value;
+                
+                if (mode === "add") {
+                    addIssueItem(date, itemType, itemName, model, quantity, department, userName);
+                }
+                
+                modal.style.display = "none";
+            }
+            
+            // Set up export button
+            document.getElementById("exportIssuesBtn").addEventListener("click", exportIssuesToExcel);
+        }
+        
+        function loadIssuesData() {
+            // First check local storage
+            const issuesData = JSON.parse(localStorage.getItem('issuesData') || '[]');
+            
+            if (issuesData.length > 0) {
+                renderIssuesTable(issuesData);
+            } else {
+                // If no local data, load from Google Sheets
+                loadIssuesFromGoogleSheets();
+            }
+        }
+        
+        function renderIssuesTable(data) {
+            const tbody = document.querySelector("#issuesTable tbody");
+            tbody.innerHTML = "";
+            
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            
+            data.forEach(item => {
+                const itemDate = new Date(item.date);
+                if (itemDate >= oneYearAgo) {
+                    const tr = document.createElement("tr");
+                    
+                    tr.innerHTML = `
+                        <td>${item.date}</td>
+                        <td>${item.itemType}</td>
+                        <td>${item.itemName}</td>
+                        <td>${item.model}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.department}</td>
+                        <td>${item.userName}</td>
+                        <td class="actions">
+                            ${user.role === 'admin' ? `<button onclick="deleteIssueItem('${item.id}')" class="btn-delete">DELETE</button>` : ''}
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(tr);
+                }
+            });
+        }
+        
+        function addIssueItem(date, itemType, itemName, model, quantity, department, userName) {
+            const newIssue = {
+                id: generateId(),
+                date,
+                itemType,
+                itemName,
+                model,
+                quantity: parseInt(quantity),
+                department,
+                userName,
+                timestamp: new Date().toISOString()
+            };
+            
+            const issuesData = JSON.parse(localStorage.getItem('issuesData') || '[]');
+            issuesData.push(newIssue);
+            
+            localStorage.setItem('issuesData', JSON.stringify(issuesData));
+            saveIssuesToGoogleSheets(issuesData);
+            
+            // Deduct from stock
+            deductFromStock(itemName, itemType, model, quantity);
+            
+            loadIssuesData();
+        }
+        
+        function deleteIssueItem(itemId) {
+            if (confirm("ARE YOU SURE YOU WANT TO DELETE THIS ISSUE RECORD?")) {
+                const issuesData = JSON.parse(localStorage.getItem('issuesData') || '[]');
+                const updatedData = issuesData.filter(item => item.id !== itemId);
+                
+                localStorage.setItem('issuesData', JSON.stringify(updatedData));
+                saveIssuesToGoogleSheets(updatedData);
+                loadIssuesData();
+            }
+        }
+        
+        function deductFromStock(itemName, itemType, model, quantity) {
+            const stockData = JSON.parse(localStorage.getItem('stockData') || '[]');
+            const itemIndex = stockData.findIndex(item => 
+                item.itemName === itemName && 
+                item.itemType === itemType && 
+                item.model === model
+            );
+            
+            if (itemIndex !== -1) {
+                const currentQty = parseInt(stockData[itemIndex].quantity);
+                const newQty = currentQty - parseInt(quantity);
+                
+                if (newQty >= 0) {
+                    stockData[itemIndex].quantity = newQty;
+                    localStorage.setItem('stockData', JSON.stringify(stockData));
+                    saveStockToGoogleSheets(stockData);
+                    
+                    // Reload stock data if on stock page
+                    if (window.location.pathname.endsWith('stock.html')) {
+                        loadStockData();
+                    }
+                } else {
+                    alert("INSUFFICIENT STOCK! ONLY " + currentQty + " AVAILABLE.");
+                }
+            } else {
+                alert("ITEM NOT FOUND IN STOCK!");
+            }
+        }
+        
+        function exportIssuesToExcel() {
+            const issuesData = JSON.parse(localStorage.getItem('issuesData') || '[]');
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            
+            const filteredData = issuesData.filter(item => {
+                const itemDate = new Date(item.date);
+                return itemDate >= oneYearAgo;
+            });
+            
+            if (filteredData.length === 0) {
+                alert("NO DATA TO EXPORT");
+                return;
+            }
+            
+            let csv = "DATE,ITEM TYPE,ITEM NAME,MODEL,QUANTITY,DEPARTMENT,USER NAME\n";
+            
+            filteredData.forEach(item => {
+                csv += `"${item.date}","${item.itemType}","${item.itemName}","${item.model}","${item.quantity}","${item.department}","${item.userName}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", "CLIFTEX_ISSUES_DATA_" + new Date().toISOString().slice(0, 10) + ".csv");
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
